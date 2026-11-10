@@ -3,38 +3,13 @@
  * 适用客户端：Clash Verge Rev / Mihomo Party / FlClash / Clash Mi / Stash (Mihomo 内核) 等
  * 功能说明：
  *   1. 保留机场订阅原有的节点（自动过滤“剩余流量/到期时间/官网”等垃圾信息节点）
- *   2. 注入自定义直连节点与自建洛杉矶 VLESS 节点
+ *   2. 注入自定义直连节点
  *   3. 全面覆盖 DNS（Fake-IP + 国内外分流防污染 + Apple AI 专属解析）、Hosts（屏蔽 B 站 PCDN）
- *   4. 全面覆盖精简策略组（含自建置顶、美国故障转移、Apple AI / AI / Google / TG / TikTok 等）
+ *   4. 全面覆盖精简策略组（含美国故障转移、Apple AI / AI / Google / TG / TikTok 等）
  *   5. 全面覆盖 Rule Providers 规则集与分流路由规则（含 Apple Intelligence / Siri 专项代理）
  */
 
 // ==================== 1. 自定义节点配置 ====================
-
-// 自建节点名称（修改此处会自动同步到所有策略组与故障转移组）
-const SELF_NODE_NAME = "自建1 | 洛杉矶";
-
-// 是否启用自建节点（如暂时不填写真实参数，可设为 false，脚本会自动从策略组中移除该节点防止报错）
-const ENABLE_SELF_NODE = true;
-
-// 自建节点详细配置（请替换 server、port、uuid、public-key 等为你自己的真实参数）
-const SELF_NODE = {
-  name: SELF_NODE_NAME,
-  type: "vless",
-  server: "xxxxx",
-  port: 443, // 注意：端口必须是数字类型
-  uuid: "xxxxx",
-  network: "tcp",
-  udp: true,
-  tls: true,
-  flow: "xtls-rprx-vision",
-  servername: "www.amazon.com",
-  "client-fingerprint": "chrome",
-  "reality-opts": {
-    "public-key": "xxxxx",
-    "short-id": "",
-  },
-};
 
 // 直连细分节点
 const DIRECT_PROXIES = [
@@ -166,12 +141,8 @@ function main(config) {
     return true;
   });
 
-  // 合并直连节点、自建节点与清洗后的机场节点
-  const injectedProxies = [...DIRECT_PROXIES];
-  if (ENABLE_SELF_NODE && SELF_NODE && SELF_NODE.name) {
-    injectedProxies.push(SELF_NODE);
-  }
-  config.proxies = [...injectedProxies, ...filteredAirportProxies];
+  // 合并直连节点与清洗后的机场节点
+  config.proxies = [...DIRECT_PROXIES, ...filteredAirportProxies];
 
   // 如果订阅中包含 proxy-providers，为其统一注入健康检查与垃圾节点过滤
   if (
@@ -238,70 +209,14 @@ function main(config) {
     hidden: true,
   };
 
-  const selfNodeList = ENABLE_SELF_NODE ? [SELF_NODE_NAME] : [];
-
-  const proxiesDefault = [
-    "默认代理",
-    ...selfNodeList,
-    "美国",
-    "香港",
-    "日本",
-    "新加坡",
-    "台湾省",
-    "手动选择",
-    "自动选择",
-    "负载均衡",
-  ];
-
-  const proxiesDirect = [
-    "默认代理",
-    "直连",
-    ...selfNodeList,
-    "美国",
-    "香港",
-    "日本",
-    "新加坡",
-    "台湾省",
-    "手动选择",
-    "自动选择",
-    "负载均衡",
-  ];
-
-  const usGroupProxies = ENABLE_SELF_NODE
-    ? ["美国-故障转移", "美国-自动选择"]
-    : ["美国-自动选择"];
-
-  const usFallbackGroup = ENABLE_SELF_NODE
-    ? [
-        {
-          name: "美国-故障转移",
-          type: "fallback",
-          url: "https://g.cn/generate_204",
-          interval: 180,
-          timeout: 3000,
-          lazy: false,
-          proxies: [SELF_NODE_NAME, "美国-自动选择"],
-          icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Auto.png",
-          hidden: true,
-        },
-      ]
-    : [];
+  const proxiesDefault = ["默认代理", "美国", "香港", "日本", "新加坡", "台湾省", "手动选择", "自动选择", "负载均衡"];
+  const proxiesDirect = ["默认代理", "直连", "美国", "香港", "日本", "新加坡", "台湾省", "手动选择", "自动选择", "负载均衡"];
 
   config["proxy-groups"] = [
     {
       ...selectCommon,
       name: "默认代理",
-      proxies: [
-        ...selfNodeList,
-        "美国",
-        "香港",
-        "日本",
-        "新加坡",
-        "台湾省",
-        "手动选择",
-        "自动选择",
-        "负载均衡",
-      ],
+      proxies: ["美国", "香港", "日本", "新加坡", "台湾省", "手动选择", "自动选择", "负载均衡"],
       icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Proxy.png",
     },
     {
@@ -421,17 +336,15 @@ function main(config) {
       name: "美国",
       filter: REGION_FILTERS.US,
       "exclude-filter": GLOBAL_EXCLUDE_FILTER,
-      "default-selected": ENABLE_SELF_NODE ? "美国-故障转移" : "美国-自动选择",
+      "default-selected": "美国-自动选择",
       "include-all": true,
-      proxies: usGroupProxies,
+      proxies: ["美国-自动选择"],
       icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/United_States.png",
     },
-    ...usFallbackGroup,
     {
       ...autoCommon,
       name: "美国-自动选择",
       filter: REGION_FILTERS.US,
-      "exclude-filter": "自建",
     },
     {
       ...selectCommon,
